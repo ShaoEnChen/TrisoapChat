@@ -1,8 +1,6 @@
 'use strict';
 
-const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN,
-	  MSG_STRING_WELCOME = '您好！',
-	  MSG_STRING_FORWARD_TO_HUMAN_AGENT = '請稍等，稍後將由客服人員進行回覆';
+const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
 
 const request = require('request'),
 	  express = require('express'),
@@ -10,7 +8,9 @@ const request = require('request'),
 	  app = express().use(body_parser.json());
 
 const TemplateComponents = require('./TemplateComponents'),
-	  Templates = require('./Templates');
+	  Templates = require('./Templates'),
+	  Dialog = require('./Dialog'),
+	  Validate = require('./Validate');
 
 app.listen(process.env.PORT || 1337);
 
@@ -52,19 +52,19 @@ app.post('/webhook', (req, res) => {
 
 function callSendAPI(sender_psid, response) {
 	let request_body = {
-		'recipient': {
-			'id': sender_psid
+		recipient: {
+			id: sender_psid
 		},
-		'message': response
+		message: response
 	};
 
 	request({
-		'uri': 'https://graph.facebook.com/v2.6/me/messages',
-		'qs': {
-			'access_token': PAGE_ACCESS_TOKEN
+		uri: 'https://graph.facebook.com/v2.6/me/messages',
+		qs: {
+			access_token: PAGE_ACCESS_TOKEN
 		},
-		'method': 'POST',
-		'json': request_body
+		method: 'POST',
+		json: request_body
 	}, (err, res, body) => {
 		if (!err) {
 			// console.log('Message Sent');
@@ -75,7 +75,7 @@ function callSendAPI(sender_psid, response) {
 }
 
 function handleMessage(sender_psid, received_message) {
-	let response = {};
+	let response;
 
 	if (received_message.quick_reply) {
 		response = getResponseByPayload(received_message.quick_reply.payload);
@@ -98,21 +98,23 @@ function handlePostback(sender_psid, received_postback) {
 /** Below are custom functions */
 
 function getResponseByText(/** string */ message_text) {
-	let response = {};
-
 	switch (message_text) {
 	case 'hi':
-		response = getResponseByPayload('GET_STARTED');
-		break;
+		return getResponseByPayload('GET_STARTED');
 	default:
-		response = createMessageText(message_text);
+		if (Validate.email.test(message_text)) {
+			return getResponseByPayload('ER'); // email received
+		} else if (Validate.phone.test(message_text)) {
+			return getResponseByPayload('PR'); // phone received
+		} else {
+			// some unknown text, error handling
+			return createMessageText(message_text);
+		}
 	}
-
-	return response;
 }
 
 function getResponseForwardToAgent() {
-	return createMessageText(MSG_STRING_FORWARD_TO_HUMAN_AGENT);
+	return createMessageText(Dialog.message.title.FORWARD_TO_HUMAN_AGENT);
 }
 
 function getResponseByPayload(/** string */ payload) {
@@ -120,27 +122,48 @@ function getResponseByPayload(/** string */ payload) {
 
 	switch (payload) {
 	case 'GET_STARTED': { // default messenger starting postback
-		let qr_wedding_petit_gift = new TemplateComponents.QuickReply('text'),
+		let qr_wedding_petitgift = new TemplateComponents.QuickReply('text'),
 			qr_customer_service = new TemplateComponents.QuickReply('text');
 
-		response = createMessageTemplate('quick_replies');
+		qr_wedding_petitgift.setTitle(Dialog.quick_reply.WEDDING_PETITGIFT);
+		qr_wedding_petitgift.setPayload('WP'); // wedding petitgifts
 
-		qr_wedding_petit_gift.setTitle('試用婚禮小物');
-		qr_wedding_petit_gift.setPayload('WG'); // Wedding PetitGift
-
-		qr_customer_service.setTitle('洽詢客服');
+		qr_customer_service.setTitle(Dialog.quick_reply.CUSTOMER_SERVICE);
 		qr_customer_service.setPayload('CS'); // contact service
 
-		response.setText(MSG_STRING_WELCOME);
-		response.setQuickReplies([qr_wedding_petit_gift, qr_customer_service]);
+		response = createMessageTemplate('quick_replies');
+		response.setText(Dialog.message.title.GET_STARTED);
+		response.setQuickReplies([qr_wedding_petitgift, qr_customer_service]);
 	}	return response;
-	case 'WG':
-		return getResponseByText(payload);
+	case 'WP': { // wedding petitgifts
+		// ask for phone number
+		let qr_phone_number = new TemplateComponents.QuickReply('user_phone_number');
+
+		response = createMessageTemplate('quick_replies');
+		response.setText(Dialog.message.title.ASK_FOR_PHONE);
+		response.setQuickReplies([qr_phone_number]);
+	}	return response;
+	case 'PR': { // phone received
+		// ask for email address
+		let qr_user_email = new TemplateComponents.QuickReply('user_email');
+
+		response = createMessageTemplate('quick_replies');
+		response.setText(Dialog.message.title.ASK_FOR_EMAIL);
+		response.setQuickReplies([qr_user_email]);
+	} 	return response;
+	case 'ER': // email received
+		return createMessageText(Dialog.message.title.DATA_RECEIVED);
 	case 'CS': // contact service
 		return getResponseForwardToAgent();
 	default:
-		return getResponseByText(payload);
-		// some unknown payload, error handling
+		if (Validate.email.test(payload)) {
+			return getResponseByPayload('ER'); // email received
+		} else if (Validate.phone.test(payload)) {
+			return getResponseByPayload('PR'); // phone received
+		} else {
+			// some unknown payload, error handling
+			return createMessageText(payload);
+		}
 	}
 }
 
