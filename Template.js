@@ -49,28 +49,19 @@ class GenericTemplate extends Template {
 }
 
 class MediaTemplate extends Template {
-	constructor(/** element */ element) {
+	constructor(/** Array<Element>{1} */ element) {
 		super();
 		const payload = this.attachment.payload;
 		payload.template_type = 'media';
-		payload.elements = [element]; // Array<Element>{1}
+		payload.elements = element;
 	}
 
 	// class MediaElement {
 	// 	constructor(/** string(image|video) */ media_type,
-	// 			    /** boolean */ is_url,
-	// 			    /** string */ attachment) {
-	// 		this.media_type = media_type;
-
-	// 		if (is_url) {
-	// 			this.url = attachment;
-	// 		} else {
-	// 			this.attachment_id = attachment;
-	// 		}
-	// 	}
-
-	// 	setButtons(/** Array<Button> */ buttons) {
-	// 		this.buttons = buttons;
+	// 			    /** string */ attachment_id,
+	// 			    /** string */ url,
+	// 				/** Array<Button> */ buttons) {
+	// 		...
 	// 	}
 	// }
 }
@@ -82,6 +73,39 @@ class ButtonTemplate extends Template {
 		payload.template_type = 'button';
 		payload.text = text;
 		payload.buttons = buttons;
+	}
+}
+
+// created by createTemplate('quick_replies')
+class QuickReplies {
+	setText(/** string */ text) {
+		this.text = text;
+	}
+
+	setAttachment(/** Attachment */ attachment) {
+		this.attachment = attachment;
+	}
+
+	setQuickReplies(/** Array<QuickReply> */ quick_replies) {
+		this.quick_replies = quick_replies;
+	}
+}
+
+class QuickReply {
+	constructor(/** string(text|location|user_phone_number|user_email) */ content_type) {
+		this.content_type = content_type;
+	}
+
+	setTitle(/** string */ title) {
+		this.title = title;
+	}
+
+	setPayload(/** string */ payload) {
+		this.payload = payload;
+	}
+
+	setImageUrl(/** string */ image_url) {
+		this.image_url = image_url;
 	}
 }
 
@@ -177,42 +201,8 @@ function createButton(/** string */ type, ...params) {
 	}
 }
 
-class QuickReplies {
-	setText(/** string */ text) {
-		this.text = text;
-		this.quick_replies = []; // Array<QuickReply>
-	}
-
-	setAttachment(/** Attachment */ attachment) {
-		this.attachment = attachment;
-	}
-
-	setQuickReplies(/** Array<QuickReply> */ quick_replies) {
-		this.quick_replies = quick_replies;
-	}
-}
-
-class QuickReply {
-	constructor(/** string(text|location|user_phone_number|user_email) */ content_type) {
-		this.content_type = content_type;
-	}
-
-	setTitle(/** string */ title) {
-		this.title = title;
-	}
-
-	setPayload(/** string */ payload) {
-		this.payload = payload;
-	}
-
-	setImageUrl(/** string */ image_url) {
-		this.image_url = image_url;
-	}
-}
-
 module.exports = {
 	createTemplate,
 	createButton,
-	QuickReplies,
 	QuickReply
 };
