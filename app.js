@@ -1,22 +1,20 @@
 'use strict';
 
-const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
+const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN,
+	  VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 
 const request = require('request'),
 	  express = require('express'),
 	  body_parser = require('body-parser'),
 	  app = express().use(body_parser.json());
 
-const TemplateComponents = require('./TemplateComponents'),
-	  Templates = require('./Templates'),
+const Template = require('./Template'),
 	  Dialog = require('./Dialog'),
-	  Validate = require('./Validate');
+	  ValidateRegex = require('./ValidateRegex');
 
 app.listen(process.env.PORT || 1337);
 
 app.get('/webhook', (req, res) => {
-	const VERIFY_TOKEN = 'doyouknowthemuffinman';
-
 	let mode = req.query['hub.mode'],
 		token = req.query['hub.verify_token'],
 		challenge = req.query['hub.challenge'];
@@ -50,6 +48,42 @@ app.post('/webhook', (req, res) => {
 	}
 });
 
+function handleMessage(sender_psid, received_message) {
+	let response;
+
+	if (received_message.quick_reply) {
+		response = getResponseByPayload(sender_psid, received_message.quick_reply.payload);
+	} else if (received_message.text) {
+		response = getResponseByText(sender_psid, received_message.text);
+	} else {
+		response = getResponseForwardToAgent();
+	}
+
+	sequenceSendAPI(sender_psid, response);
+}
+
+function handlePostback(sender_psid, received_postback) {
+	let payload = received_postback.payload,
+		response = getResponseByPayload(sender_psid, payload);
+
+	sequenceSendAPI(sender_psid, response);
+}
+
+async function sequenceSendAPI(sender_psid, response) {
+	if (Array.isArray(response)) {
+		for (let r of response) {
+			await callSendAPI(sender_psid, r)
+				.then((body) => {
+					// message sent
+				}).catch((err) => {
+					// unable to send message, error handling
+				});
+		}
+	} else {
+		await callSendAPI(sender_psid, response);
+	}
+}
+
 function callSendAPI(sender_psid, response) {
 	let request_body = {
 		recipient: {
@@ -58,132 +92,163 @@ function callSendAPI(sender_psid, response) {
 		message: response
 	};
 
-	request({
-		uri: 'https://graph.facebook.com/v2.6/me/messages',
-		qs: {
-			access_token: PAGE_ACCESS_TOKEN
-		},
-		method: 'POST',
-		json: request_body
-	}, (err, res, body) => {
-		if (!err) {
-			// console.log('Message Sent');
-		} else {
-			// console.error('Unable To Send Message:' + err);
-		}
+	return new Promise((resolve, reject) => {
+		request({
+			uri: 'https://graph.facebook.com/v2.6/me/messages',
+			qs: {
+				access_token: PAGE_ACCESS_TOKEN
+			},
+			method: 'POST',
+			json: request_body
+		}, (err, res, body) => {
+			if (err || res.statusCode != 200) {
+				reject(err || { statusCode: res.statusCode });
+			} else {
+				resolve(body);
+			}
+		});
 	});
 }
 
-function handleMessage(sender_psid, received_message) {
-	let response;
-
-	if (received_message.quick_reply) {
-		response = getResponseByPayload(received_message.quick_reply.payload);
-	} else if (received_message.text) {
-		response = getResponseByText(received_message.text);
-	} else {
-		response = getResponseForwardToAgent();
-	}
-
-	callSendAPI(sender_psid, response);
+function getResponseForwardToAgent() {
+	return createTextMessage(Dialog.FORWARD_TO_HUMAN_AGENT);
 }
 
-function handlePostback(sender_psid, received_postback) {
-	let payload = received_postback.payload,
-		response = getResponseByPayload(payload);
-
-	callSendAPI(sender_psid, response);
-}
-
-/** Below are custom functions */
-
-function getResponseByText(/** string */ message_text) {
+function getResponseByText(sender_psid, /** string */ message_text) {
 	switch (message_text) {
 	case 'hi':
-		return getResponseByPayload('GET_STARTED');
+		return getResponseByPayload(sender_psid, 'GET_STARTED');
 	default:
-		if (Validate.email.test(message_text)) {
-			return getResponseByPayload('ER'); // email received
-		} else if (Validate.phone.test(message_text)) {
-			return getResponseByPayload('PR'); // phone received
-		} else {
-			// some unknown text, error handling
-			return createMessageText(message_text);
-		}
+		return validateRegex(sender_psid, message_text);
 	}
 }
 
-function getResponseForwardToAgent() {
-	return createMessageText(Dialog.message.title.FORWARD_TO_HUMAN_AGENT);
-}
-
-function getResponseByPayload(/** string */ payload) {
-	let response;
-
+function getResponseByPayload(sender_psid, /** string */ payload) {
 	switch (payload) {
 	case 'GET_STARTED': { // default messenger starting postback
-		let qr_wedding_petitgift = new TemplateComponents.QuickReply('text'),
-			qr_customer_service = new TemplateComponents.QuickReply('text');
+		let intro = Template.createTemplate('quick_replies'),
+			qr_trial = new Template.QuickReply('text'),
+			qr_wedding = new Template.QuickReply('text'),
+			qr_lecture = new Template.QuickReply('text'),
+			qr_info = new Template.QuickReply('text'),
+			qr_collaborate = new Template.QuickReply('text'),
+			welcome_quick_replies = Dialog.welcome.quick_replies;
 
-		qr_wedding_petitgift.setTitle(Dialog.quick_reply.WEDDING_PETITGIFT);
-		qr_wedding_petitgift.setPayload('WP'); // wedding petitgifts
+		qr_trial.setTitle(welcome_quick_replies.trial.TITLE);
+		qr_trial.setPayload('T');
 
-		qr_customer_service.setTitle(Dialog.quick_reply.CUSTOMER_SERVICE);
-		qr_customer_service.setPayload('CS'); // contact service
+		qr_wedding.setTitle(welcome_quick_replies.wedding.TITLE);
+		qr_wedding.setPayload('W');
 
-		response = createMessageTemplate('quick_replies');
-		response.setText(Dialog.message.title.GET_STARTED);
-		response.setQuickReplies([qr_wedding_petitgift, qr_customer_service]);
-	}	return response;
-	case 'WP': { // wedding petitgifts
-		// ask for phone number
-		let qr_phone_number = new TemplateComponents.QuickReply('user_phone_number');
+		qr_lecture.setTitle(welcome_quick_replies.lecture.TITLE);
+		qr_lecture.setPayload('L');
 
-		response = createMessageTemplate('quick_replies');
-		response.setText(Dialog.message.title.ASK_FOR_PHONE);
-		response.setQuickReplies([qr_phone_number]);
-	}	return response;
-	case 'PR': { // phone received
-		// ask for email address
-		let qr_user_email = new TemplateComponents.QuickReply('user_email');
+		qr_info.setTitle(welcome_quick_replies.info.TITLE);
+		qr_info.setPayload('I');
 
-		response = createMessageTemplate('quick_replies');
-		response.setText(Dialog.message.title.ASK_FOR_EMAIL);
-		response.setQuickReplies([qr_user_email]);
-	} 	return response;
-	case 'ER': // email received
-		return createMessageText(Dialog.message.title.DATA_RECEIVED);
-	case 'CS': // contact service
-		return getResponseForwardToAgent();
+		qr_collaborate.setTitle(welcome_quick_replies.collaborate.TITLE);
+		qr_collaborate.setPayload('C');
+
+		intro.setAttachment({
+			type: 'template',
+			payload: {
+				template_type: 'generic',
+				elements: [{
+					title: Dialog.welcome.TITLE,
+					image_url: Dialog.image_url.WELCOME
+				}]
+			}
+		});
+		intro.setQuickReplies([
+			qr_trial,
+			qr_wedding,
+			qr_lecture,
+			qr_info,
+			qr_collaborate
+		]);
+		return intro;
+	}
+	case 'T': {
+		let intro = new Template.createTemplate('generic', [{
+				title: Dialog.trial.TITLE,
+				image_url: Dialog.image_url.TRIAL
+			}]),
+			next_step = createTextMessage(Dialog.ASK_FOR_NAME);
+
+		return [intro, next_step];
+	}
+	case 'W': { // persistent_menu: wedding
+		let intro = new Template.createTemplate('generic', [{
+				title: Dialog.wedding.TITLE,
+				image_url: Dialog.image_url.WEDDING
+			}]),
+			next_step = createTextMessage(Dialog.ASK_FOR_NAME);
+
+		return [intro, next_step];
+	}
+	case 'L': {
+		let intro = new Template.createTemplate('generic', [{
+				title: Dialog.lecture.TITLE,
+				image_url: Dialog.image_url.LECTURE
+			}]),
+			next_step = createTextMessage(Dialog.ASK_FOR_NAME);
+
+		return [intro, next_step];
+	}
+	case 'I': {
+		let intro = new Template.createTemplate('generic', [{
+				title: Dialog.info.TITLE,
+				image_url: Dialog.image_url.INFO
+			}]),
+			info_content = Dialog.info.content,
+			btn_website = new Template.createButton('web', info_content.button.website.TITLE, info_content.button.website.URL),
+			btn_media = new Template.createButton('web', info_content.button.media.TITLE, info_content.button.media.URL),
+			btn_interview = new Template.createButton('web', info_content.button.interview.TITLE, info_content.button.interview.URL),
+			next_step,
+			video;
+
+		btn_website.setWebviewHeightRatio('full');
+		btn_media.setWebviewHeightRatio('full');
+		btn_interview.setWebviewHeightRatio('full');
+
+		next_step = new Template.createTemplate('button', info_content.TITLE, [
+			btn_website,
+			btn_media,
+			btn_interview
+		]);
+
+		video = new Template.createTemplate('media', [{
+			media_type: 'video',
+			url: info_content.video.URL
+		}]);
+
+		return [intro, next_step, video];
+	}
+	case 'C': {
+		let element = {
+				title: Dialog.collaborate.TITLE,
+				image_url: Dialog.image_url.COLLABORATE
+			},
+			intro = new Template.createTemplate('generic', [element]);
+
+		return intro;
+	}
 	default:
-		if (Validate.email.test(payload)) {
-			return getResponseByPayload('ER'); // email received
-		} else if (Validate.phone.test(payload)) {
-			return getResponseByPayload('PR'); // phone received
-		} else {
-			// some unknown payload, error handling
-			return createMessageText(payload);
-		}
+		return validateRegex(sender_psid, payload);
 	}
 }
 
-function createMessageText(/** string */ text) {
+function createTextMessage(/** string */ text) {
 	return {
 		text
 	};
 }
 
-function createMessageTemplate(/** string(generic|media|button) */ templateType) {
-	switch(templateType) {
-	case 'generic':
-		return new Templates.GenericTemplate();
-	case 'media':
-		return new Templates.MediaTemplate();
-	case 'button':
-		return new Templates.ButtonTemplate();
-	case 'quick_replies':
-		return new Templates.QuickReplies();
-	default:
-		// some unknown template type, error handling
+function validateRegex(sender_psid, /** string */ str) {
+	if (ValidateRegex.phone.test(str)) {
+		return createTextMessage('phone validated');
+	} else {
+		// Text without need for validation
+		return getResponseForwardToAgent();
 	}
 }
