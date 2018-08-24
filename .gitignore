@@ -35,7 +35,6 @@ typings/
 
 # eslint
 .eslintcache
-.eslintrc.js
 
 # Output of 'npm pack'
 *.tgz
