@@ -56,7 +56,7 @@ function handleMessage(sender_psid, received_message) {
 	} else if (received_message.text) {
 		response = getResponseByText(sender_psid, received_message.text);
 	} else {
-		response = getResponseForwardToAgent();
+		response = getResponseByState();
 	}
 
 	sequenceSendAPI(sender_psid, response);
@@ -110,8 +110,44 @@ function callSendAPI(sender_psid, response) {
 	});
 }
 
-function getResponseForwardToAgent() {
-	return createTextMessage(Dialog.FORWARD_TO_HUMAN_AGENT);
+function getResponseByState(state, step) {
+	switch(state) {
+	case 'T':
+		switch(step) {
+		case '1':
+			return createTextMessage(Dialog.ASK_FOR_PHONE);
+		case '2':
+			return createTextMessage(Dialog.ASK_FOR_ADDR);
+		case '3':
+			return createTextMessage(`${Dialog.trial.thanks.TITLE}\n${Dialog.trial.thanks.URL}`);
+		default:
+			return createTextMessage(Dialog.FORWARD_TO_HUMAN_AGENT);
+		}
+	case 'W':
+		switch(step) {
+		case '1':
+			return createTextMessage(Dialog.ASK_FOR_PHONE);
+		case '2':
+			return createTextMessage(Dialog.ASK_FOR_ADDR);
+		case '3':
+			return createTextMessage(`${Dialog.wedding.thanks.TITLE}\n${Dialog.wedding.thanks.URL}`);
+		default:
+			return createTextMessage(Dialog.FORWARD_TO_HUMAN_AGENT);
+		}
+	case 'L':
+		switch(step) {
+		case '1':
+			return createTextMessage(Dialog.ASK_FOR_PHONE);
+		case '2':
+			return createTextMessage(`${Dialog.lecture.thanks.TITLE}\n${Dialog.lecture.thanks.URL}`);
+		default:
+			return createTextMessage(Dialog.FORWARD_TO_HUMAN_AGENT);
+		}
+	case 'I':
+	case 'C':
+	default:
+		return createTextMessage(Dialog.FORWARD_TO_HUMAN_AGENT);
+	}
 }
 
 function getResponseByText(sender_psid, /** string */ message_text) {
@@ -249,6 +285,6 @@ function validateRegex(sender_psid, /** string */ str) {
 		return createTextMessage('phone validated');
 	} else {
 		// Text without need for validation
-		return getResponseForwardToAgent();
+		return getResponseByState();
 	}
 }
