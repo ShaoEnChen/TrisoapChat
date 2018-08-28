@@ -67,17 +67,57 @@ const Dialog = {
 		TITLE: '三三吾鄉企業合作案已累積數十間公司，不管是企業採購、演講邀約，只要您填寫您的公司、姓名、電話以及簡單的需求，我們都會由專人用最快的速度回覆您！',
 		THANKS: '感謝您，近日將會有專人與您聯繫！'
 	},
-	ASK_FOR_NAME: '1. 請留下您的姓名',
-	ASK_FOR_PHONE: '2. 接下來留下您的電話',
-	ASK_FOR_ADDR: '3. 最後請輸入您完整的地址',
-	FORWARD_TO_HUMAN_AGENT: '請稍等，將會有專人與您聯繫',
 	image_url: {
-		WELCOME: 'https://scontent.ftpe8-3.fna.fbcdn.net/v/t1.0-9/37806190_2190596350970351_8020044319320702976_o.jpg?_nc_cat=0&oh=bc9069056af37ee062a8f63f5ca0e13b&oe=5BD70786',
-		TRIAL: 'https://scontent.ftpe8-3.fna.fbcdn.net/v/t1.0-9/37844434_2190596474303672_6566122800711467008_o.jpg?_nc_cat=0&oh=8fe7de14244beea19717665e8af3ecd9&oe=5BC8F229',
-		WEDDING: 'https://scontent.ftpe8-3.fna.fbcdn.net/v/t1.0-9/37868693_2190596520970334_8988308987845804032_o.jpg?_nc_cat=0&oh=2010a0f2463de04be0b0981439e33922&oe=5C0DB7F3',
-		LECTURE: 'https://scontent.ftpe8-3.fna.fbcdn.net/v/t1.0-9/37936633_2190596514303668_1969409308860874752_o.jpg?_nc_cat=0&oh=0ec6966d80cb9ccf42f99280c8a2b6cc&oe=5BCB3051',
-		INFO: 'https://scontent.ftpe8-3.fna.fbcdn.net/v/t1.0-9/37841947_2190596227637030_3358097197731151872_o.png?_nc_cat=0&oh=32de25bd9760cb8f20484e7b92531afc&oe=5C0E2325',
-		COLLABORATE: 'https://scontent.ftpe8-3.fna.fbcdn.net/v/t1.0-9/37785739_2190596330970353_8469964773759385600_o.jpg?_nc_cat=0&oh=deb93578869591aec895481e1d4c4f24&oe=5BD24F8D'
+		WELCOME: 'https://cdn.glitch.com/4ece6775-268d-427a-b285-803d4bc3a79c%2Fwelcome.png?1535397196009',
+		TRIAL: 'https://cdn.glitch.com/4ece6775-268d-427a-b285-803d4bc3a79c%2Ftrial.png?1535397194558',
+		WEDDING: 'https://cdn.glitch.com/4ece6775-268d-427a-b285-803d4bc3a79c%2Fwedding.png?1535397195387',
+		LECTURE: 'https://cdn.glitch.com/4ece6775-268d-427a-b285-803d4bc3a79c%2Flecture.png?1535397196193',
+		INFO: 'https://cdn.glitch.com/4ece6775-268d-427a-b285-803d4bc3a79c%2Finfo.png?1535397193856',
+		COLLABORATE: 'https://cdn.glitch.com/4ece6775-268d-427a-b285-803d4bc3a79c%2Fcollaborate.png?1535397195132'
+	},
+	ASK_FOR_NAME: '1. 請留下您的姓名（例如：王小明）',
+	ASK_FOR_PHONE: '2. 接下來留下您的電話',
+	ASK_FOR_ADDR: '3. 最後請輸入您完整的地址，請務必輸入正確資料讓郵差能夠找到您',
+	FORWARD_TO_HUMAN_AGENT: '請稍等，將會有專人與您聯繫',
+	WRONG_FORMAT: '您輸入的格式有誤，請重新輸入',
+	getDialogByState: function(user) {
+		switch(user.state) {
+		case 'T':
+			switch(user.step) {
+			case '1':
+				return Dialog.ASK_FOR_PHONE;
+			case '2':
+				return Dialog.ASK_FOR_ADDR;
+			case '3':
+				return `${Dialog.trial.thanks.TITLE}\n${Dialog.trial.thanks.URL}`;
+			default:
+				return Dialog.FORWARD_TO_HUMAN_AGENT;
+			}
+		case 'W':
+			switch(user.step) {
+			case '1':
+				return Dialog.ASK_FOR_PHONE;
+			case '2':
+				return Dialog.ASK_FOR_ADDR;
+			case '3':
+				return `${Dialog.wedding.thanks.TITLE}\n${Dialog.wedding.thanks.URL}`;
+			default:
+				return Dialog.FORWARD_TO_HUMAN_AGENT;
+			}
+		case 'L':
+			switch(user.step) {
+			case '1':
+				return Dialog.ASK_FOR_PHONE;
+			case '2':
+				return `${Dialog.lecture.thanks.TITLE}\n${Dialog.lecture.thanks.URL}`;
+			default:
+				return Dialog.FORWARD_TO_HUMAN_AGENT;
+			}
+		case 'I':
+		case 'C':
+		default:
+			return Dialog.FORWARD_TO_HUMAN_AGENT;
+		}
 	}
 };
 
