@@ -61,7 +61,7 @@ const State = {
 	],
 	needNameValidate: function(user) {
 		let need = false;
-		NEED_NAME.forEach((condition) => {
+		this.NEED_NAME.forEach((condition) => {
 			if (user.state === condition.state &&
 				user.step === condition.step) {
 				need = true;
@@ -71,7 +71,7 @@ const State = {
 	},
 	needPhoneValidate: function(user) {
 		let need = false;
-		NEED_PHONE.forEach((condition) => {
+		this.NEED_PHONE.forEach((condition) => {
 			if (user.state === condition.state &&
 				user.step === condition.step) {
 				need = true;
@@ -87,7 +87,7 @@ const State = {
 		}
 	},
 	isFinalStep: function(user) {
-		if (user.step === this[user.state].step) {
+		if (user.step === this[user.state].steps) {
 			return true;
 		} else {
 			return false;

@@ -81,34 +81,35 @@ const Dialog = {
 	FORWARD_TO_HUMAN_AGENT: '請稍等，將會有專人與您聯繫',
 	WRONG_FORMAT: '您輸入的格式有誤，請重新輸入',
 	getDialogByState: function(user) {
+		console.log(user.state, user.step);
 		switch(user.state) {
 		case 'T':
 			switch(user.step) {
-			case '1':
+			case 1:
 				return Dialog.ASK_FOR_PHONE;
-			case '2':
+			case 2:
 				return Dialog.ASK_FOR_ADDR;
-			case '3':
+			case 3:
 				return `${Dialog.trial.thanks.TITLE}\n${Dialog.trial.thanks.URL}`;
 			default:
 				return Dialog.FORWARD_TO_HUMAN_AGENT;
 			}
 		case 'W':
 			switch(user.step) {
-			case '1':
+			case 1:
 				return Dialog.ASK_FOR_PHONE;
-			case '2':
+			case 2:
 				return Dialog.ASK_FOR_ADDR;
-			case '3':
+			case 3:
 				return `${Dialog.wedding.thanks.TITLE}\n${Dialog.wedding.thanks.URL}`;
 			default:
 				return Dialog.FORWARD_TO_HUMAN_AGENT;
 			}
 		case 'L':
 			switch(user.step) {
-			case '1':
+			case 1:
 				return Dialog.ASK_FOR_PHONE;
-			case '2':
+			case 2:
 				return `${Dialog.lecture.thanks.TITLE}\n${Dialog.lecture.thanks.URL}`;
 			default:
 				return Dialog.FORWARD_TO_HUMAN_AGENT;

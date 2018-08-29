@@ -73,13 +73,23 @@ function handlePostback(sender_psid, received_postback) {
 }
 
 async function sequenceSendAPI(sender_psid, response) {
-	if (Array.isArray(response)) {
+	if (!response) {
+		return;
+	} else if (Array.isArray(response)) {
 		for (let r of response) {
 			await callSendAPI(sender_psid, r)
 				.catch((err) => {
 					// unable to send message, error handling
 				});
 		}
+	} else if (response.constructor.name === 'Promise') {
+		response.then(async (value) => {
+			await callSendAPI(sender_psid, value).catch((err) => {
+				throw err;
+			});
+		}).catch((err) => {
+			// unable to send message, error handling
+		});
 	} else {
 		await callSendAPI(sender_psid, response)
 			.catch((err) => {
@@ -120,30 +130,56 @@ function createTextMessage(/** string */ text) {
 	};
 }
 
-function validate(sender_psid, /** string */ message) {
-	return User.findUser(sender_psid).then((user) => {
+async function validate(sender_psid, /** string */ message) {
+	let update, response;
+	try {
+		const user = await User.findUser(sender_psid),
+			  processing_state = 'P';
+
 		if (State.needNameValidate(user)) {
 			if (message.length <= 5) { // name validated
-				return Dialog.getDialogByState(user);
+				response = Dialog.getDialogByState(user);
 			} else { // can be other requests, forward to human agents
-				return Dialog.FORWARD_TO_HUMAN_AGENT;
+				response = Dialog.FORWARD_TO_HUMAN_AGENT;
 			}
 		} else if (State.needPhoneValidate(user)) {
 			if (ValidateRegex.phone.test(message)) { // phone validated
-				return Dialog.getDialogByState(user);
+				response = Dialog.getDialogByState(user);
 			} else if (message.length > 20) { // can be other requests, forward to human agents
-				return Dialog.FORWARD_TO_HUMAN_AGENT;
+				response = Dialog.FORWARD_TO_HUMAN_AGENT;
 			} else {
-				return Dialog.WRONG_FORMAT;
+				response = Dialog.WRONG_FORMAT;
 			}
 		} else {
-			return Dialog.getDialogByState(user);
+			response = Dialog.getDialogByState(user);
 		}
-	}).then((response) => {
 
-	});
-
-		// return createTextMessage(Dialog.getDialogByState());	// empty state heads to default message
+		if (response === Dialog.FORWARD_TO_HUMAN_AGENT) {
+			User.updateUser(sender_psid, {
+				processing_state,
+				step: State.getInitialStep(processing_state)
+			});
+		} else if (response === Dialog.WRONG_FORMAT) {
+			// stay in current step
+		} else {
+			if (State.isFinalStep(user)) {
+				update = {
+					state: processing_state,
+					step: State.getInitialStep(processing_state)
+				};
+			} else {
+				update = {
+					step: ++user.step
+				};
+			}
+			User.updateUser(sender_psid, update).catch((err) => {
+				throw err;
+			});
+		}
+		return createTextMessage(response);
+	} catch (err) {
+		// error handling
+	};
 }
 
 function getResponseByText(sender_psid, /** string */ message_text) {
@@ -188,7 +224,7 @@ function createIntro(/** string */ type) {
 	case 'C':
 		return getCollaborateIntro();
 	default:
-		return false;
+		return createTextMessage(Dialog.FORWARD_TO_HUMAN_AGENT);
 	}
 }
 
