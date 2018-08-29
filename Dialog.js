@@ -64,8 +64,7 @@ const Dialog = {
 		}
 	},
 	collaborate: {
-		TITLE: '三三吾鄉企業合作案已累積數十間公司，不管是企業採購、演講邀約，只要您填寫您的公司、姓名、電話以及簡單的需求，我們都會由專人用最快的速度回覆您！',
-		THANKS: '感謝您，近日將會有專人與您聯繫！'
+		TITLE: '三三吾鄉企業合作案已累積數十間公司，不管是企業採購、演講邀約，只要您填寫您的公司、姓名、電話以及簡單的需求，我們都會由專人用最快的速度回覆您！'
 	},
 	image_url: {
 		WELCOME: 'https://cdn.glitch.com/4ece6775-268d-427a-b285-803d4bc3a79c%2Fwelcome.png?1535397196009',
@@ -81,7 +80,6 @@ const Dialog = {
 	FORWARD_TO_HUMAN_AGENT: '請稍等，將會有專人與您聯繫',
 	WRONG_FORMAT: '您輸入的格式有誤，請重新輸入',
 	getDialogByState: function(user) {
-		console.log(user.state, user.step);
 		switch(user.state) {
 		case 'T':
 			switch(user.step) {

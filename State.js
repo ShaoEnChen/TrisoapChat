@@ -1,4 +1,5 @@
 const State = {
+	PROCESSING: 'P',
 	NEW: {
 		// Newly created user who hasn't taken any action
 		steps: 0
@@ -9,15 +10,15 @@ const State = {
 	},
 	T: {
 		// User applying for Trial
-		steps: 3
+		steps: 4
 	},
 	W: {
 		// User applying for Wedding petitgifts trial
-		steps: 3
+		steps: 4
 	},
 	L: {
 		// User applying for Lectures
-		steps: 2
+		steps: 3
 	},
 	I: {
 		// User applying for more Information
@@ -25,7 +26,7 @@ const State = {
 	},
 	C: {
 		// User applying for Collaboration
-		steps: 1
+		steps: 0
 	},
 	P: {
 		// User under processing / User who has finished applying a service

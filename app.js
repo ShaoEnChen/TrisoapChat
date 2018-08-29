@@ -124,17 +124,16 @@ function callSendAPI(sender_psid, response) {
 	});
 }
 
-function createTextMessage(/** string */ text) {
+function createTextMessage(text) {
 	return {
 		text
 	};
 }
 
-async function validate(sender_psid, /** string */ message) {
+async function validate(sender_psid, message) {
 	let update, response;
 	try {
-		const user = await User.findUser(sender_psid),
-			  processing_state = 'P';
+		const user = await User.findUser(sender_psid);
 
 		if (State.needNameValidate(user)) {
 			if (message.length <= 5) { // name validated
@@ -154,35 +153,50 @@ async function validate(sender_psid, /** string */ message) {
 			response = Dialog.getDialogByState(user);
 		}
 
-		if (response === Dialog.FORWARD_TO_HUMAN_AGENT) {
-			User.updateUser(sender_psid, {
-				processing_state,
-				step: State.getInitialStep(processing_state)
-			});
-		} else if (response === Dialog.WRONG_FORMAT) {
-			// stay in current step
+		// Debouncing
+		if (response === Dialog.FORWARD_TO_HUMAN_AGENT &&
+			user.state === State.PROCESSING &&
+			user.step === State.getInitialStep(State.PROCESSING)) {
+			return null;
 		} else {
-			if (State.isFinalStep(user)) {
-				update = {
-					state: processing_state,
-					step: State.getInitialStep(processing_state)
-				};
-			} else {
-				update = {
-					step: ++user.step
-				};
-			}
-			User.updateUser(sender_psid, update).catch((err) => {
-				throw err;
-			});
+			updateByResponse(sender_psid, user, response);
 		}
+
 		return createTextMessage(response);
 	} catch (err) {
 		// error handling
 	};
 }
 
-function getResponseByText(sender_psid, /** string */ message_text) {
+function updateByResponse(sender_psid, user, response) {
+	let update;
+	if (response === Dialog.FORWARD_TO_HUMAN_AGENT) {
+		User.updateUser(sender_psid, {
+			state: State.PROCESSING,
+			step: State.getInitialStep(State.PROCESSING)
+		}).catch((err) => {
+			// error handling
+		});
+	} else if (response === Dialog.WRONG_FORMAT) {
+		// stay in current step
+	} else {
+		if (State.isFinalStep(user)) {
+			update = {
+				state: State.PROCESSING,
+				step: State.getInitialStep(State.PROCESSING)
+			};
+		} else {
+			update = {
+				step: ++user.step
+			};
+		}
+		User.updateUser(sender_psid, update).catch((err) => {
+			// error handling
+		});
+	}
+}
+
+function getResponseByText(sender_psid, message_text) {
 	switch (message_text) {
 	case 'hi':
 		return getResponseByPayload(sender_psid, 'GET_STARTED');
@@ -191,7 +205,7 @@ function getResponseByText(sender_psid, /** string */ message_text) {
 	}
 }
 
-function getResponseByPayload(sender_psid, /** string */ payload) {
+function getResponseByPayload(sender_psid, payload) {
 	switch (payload) {
 	case 'GET_STARTED':
 	case 'T':
@@ -209,7 +223,7 @@ function getResponseByPayload(sender_psid, /** string */ payload) {
 	}
 }
 
-function createIntro(/** string */ type) {
+function createIntro(type) {
 	switch(type) {
 	case 'GET_STARTED':
 		return getWelcomeIntro();
@@ -224,7 +238,7 @@ function createIntro(/** string */ type) {
 	case 'C':
 		return getCollaborateIntro();
 	default:
-		return createTextMessage(Dialog.FORWARD_TO_HUMAN_AGENT);
+		// return createTextMessage(Dialog.FORWARD_TO_HUMAN_AGENT);
 	}
 }
 
