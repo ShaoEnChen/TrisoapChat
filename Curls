@@ -1,0 +1,46 @@
+# SHELL VARIABLE
+FB_API=https://graph.facebook.com/v2.6/me/messenger_profile?access_token=<YOUR_ACCESS_TOKEN>
+
+# activate get_started
+curl -X POST -H "Content-Type: application/json" -d '{ "get_started": {"payload": "GET_STARTED"} }' $FB_API
+
+# activate welcome message
+curl -X POST -H "Content-Type: application/json" -d '{ "greeting": [ { "locale":"default", "text":"嗨，{{user_full_name}}，歡迎您使用三三吾鄉 Chatbot 功能，您可以在這裡申請免費試用品以及詢問客服問題。" } ] }' $FB_API
+
+# persistent_menu
+curl -X POST -H "Content-Type: application/json" -d '{ "persistent_menu": [ { "locale":"default", "call_to_actions":[ { "title": "申請試用", "type": "nested", "call_to_actions": [ { "title": "申請試用皂", "type":"postback", "payload":"T" }, { "title": "婚禮小物", "type":"postback", "payload":"W" } ] }, { "title": "報名合作", "type": "nested", "call_to_actions": [ { "title": "體驗課程", "type":"postback", "payload":"L" }, { "title": "企業合作", "type":"postback", "payload":"C" } ] }, { "title": "更多資訊", "type":"postback", "payload":"I" } ] } ]}' $FB_API
+
+# Menu Structure
+{
+	"title": "申請試用",
+	"type": "nested",
+	"call_to_actions": [
+		{
+			"title": "申請試用皂",
+			"type":"postback",
+			"payload":"T"
+		}, {
+			"title": "婚禮小物",
+			"type":"postback",
+			"payload":"W"
+		}
+	]
+}, {
+	"title": "報名合作",
+	"type": "nested",
+	"call_to_actions": [
+		{
+			"title": "體驗課程",
+			"type":"postback",
+			"payload":"L"
+		}, {
+			"title": "更多資訊",
+			"type":"postback",
+			"payload":"I"
+		}
+	]
+}, {
+	"title": "企業合作",
+	"type":"postback",
+	"payload":"C"
+}
